@@ -35,7 +35,7 @@ import type {
   ValidationResult,
 } from "./types";
 import { ERROR_CODES } from "./types";
-import { usePriceCalculation } from "../../hooks/usePriceCalculation";
+import { useDebouncedPriceCalculation } from "../../hooks/usePriceCalculation";
 import {
   validateConfiguration,
   saveDraft,
@@ -185,7 +185,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     formattedTotal,
     isLoading: isPriceLoading,
     error: priceError,
-  } = usePriceCalculation(currentConfig, product);
+  } = useDebouncedPriceCalculation(currentConfig, product);
 
   const appliedDiscount = getAppliedDiscountPercentage(quantity);
   const nextTier = getNextDiscountTier(quantity);
@@ -219,8 +219,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
         if (!cancelled) {
           setValidation(result);
         }
-      } catch {
-      }
+      } catch {}
     };
 
     validate();
@@ -307,7 +306,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
           if (addOn.dependsOn && value !== addOn.dependsOn.requiredValue) {
             const index = selectedAddOns.indexOf(addOn.id);
             if (index > -1) {
-              selectedAddOns.splice(index, 1);
+              selectedAddOns.splice(index, 1); //tutaj  blad mutacja
               setSelectedAddOns(selectedAddOns);
             }
           }
@@ -407,8 +406,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   const handleCopyShareUrl = useCallback(() => {
     navigator.clipboard
       .writeText(shareUrl)
-      .then(() => {
-      })
+      .then(() => {})
       .catch(() => {
         setError(ERROR_CODES.UNKNOWN);
       });
@@ -919,9 +917,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
             className={`price-display ${isPriceLoading ? "price-loading" : ""}`}
           >
             <div className="price-label">Total Price</div>
-            <div className="price-value">
-              {formattedTotal}
-            </div>
+            <div className="price-value">{formattedTotal}</div>
 
             {renderPriceBreakdown()}
 
