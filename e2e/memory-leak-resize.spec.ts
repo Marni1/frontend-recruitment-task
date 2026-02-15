@@ -236,71 +236,33 @@ test.describe("CFG-143: App becomes sluggish after extended use", () => {
       expect(countAfter).toBe(countBefore);
     });
 
-    test("resize listener should be removed when component unmounts", async ({
+    test("resize listener should have cleanup (detected via StrictMode double-mount)", async ({
       page,
     }) => {
-      // Instrument addEventListener/removeEventListener BEFORE loading the app
-      // so we can track whether cleanup was called.
-      await page.addInitScript(() => {
-        const tracker = { added: 0, removed: 0 };
-        (window as any).__resizeTracker = tracker;
+      // React 18 StrictMode (enabled in main.tsx) intentionally double-fires
+      // effects in development to surface missing cleanups:
+      //   1. Mount  → effect runs  → addEventListener  (added=1)
+      //   2. Unmount (simulated)   → cleanup runs      (removed should be 1)
+      //   3. Remount (simulated)   → effect runs again → addEventListener  (added=2)
+      //
+      // With proper cleanup: added=2, removed=1 → net 1 active listener  ✓
+      // Without cleanup:     added=2, removed=0 → net 2 active listeners ✗ (LEAK)
+      //
+      // We use CDP getEventListeners to count the ACTUAL active listeners
+      // on window after the StrictMode mount cycle finishes.
 
-        const origAdd = EventTarget.prototype.addEventListener;
-        const origRemove = EventTarget.prototype.removeEventListener;
+      const activeResizeListeners = await getResizeListenerCount(page);
 
-        EventTarget.prototype.addEventListener = function (
-          type: string,
-          listener: EventListenerOrEventListenerObject,
-          options?: boolean | AddEventListenerOptions,
-        ) {
-          if (this === window && type === "resize") tracker.added++;
-          return origAdd.call(this, type, listener, options);
-        };
-
-        EventTarget.prototype.removeEventListener = function (
-          type: string,
-          listener: EventListenerOrEventListenerObject,
-          options?: boolean | EventListenerOptions,
-        ) {
-          if (this === window && type === "resize") tracker.removed++;
-          return origRemove.call(this, type, listener, options);
-        };
-      });
-
-      // Fresh navigation so the init script runs
-      await page.goto("/");
-      await waitForAppReady(page);
-
-      const afterMount = await page.evaluate(
-        () => (window as any).__resizeTracker,
-      );
-
-      expect(afterMount.added).toBeGreaterThanOrEqual(1);
-
-      // Trigger React unmount by replacing the root DOM.
-      // This is the closest E2E equivalent of unmounting the component tree.
-      await page.evaluate(() => {
-        const root = document.getElementById("root");
-        if (root) {
-          // Unmount React tree — ReactDOM will run all effect cleanups
-          // @ts-ignore - access React internals via createRoot reference
-          (window as any).__REACT_ROOT__?.unmount?.();
-
-          // Fallback: clear the container which also triggers cleanup in React 18
-          root.innerHTML = "";
-        }
-      });
-
-      await page.waitForTimeout(500);
-
-      const afterUnmount = await page.evaluate(
-        () => (window as any).__resizeTracker,
-      );
-
-      // BUG DETECTION: If cleanup is missing, `removed` will still be 0
-      // even though `added` >= 1. A properly written effect would call
-      // removeEventListener in its cleanup, so removed should match added.
-      expect(afterUnmount.removed).toBeGreaterThanOrEqual(afterUnmount.added);
+      // BUG DETECTION: In StrictMode the effect fires twice. If the first
+      // invocation's listener is never cleaned up, we end up with 2 listeners
+      // instead of 1. A properly written useEffect would return a cleanup
+      // that calls removeEventListener, leaving exactly 1 active listener.
+      expect(
+        activeResizeListeners,
+        "Expected exactly 1 active resize listener after StrictMode mount cycle. " +
+          `Found ${activeResizeListeners} — this indicates the useEffect cleanup ` +
+          "is missing (listener from first mount was never removed).",
+      ).toBe(1);
     });
   });
 
