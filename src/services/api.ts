@@ -222,7 +222,9 @@ export function encodeConfigurationToUrl(config: Configuration): string {
     q: config.quantity,
   });
 
-  return btoa(data);
+  const bytes = new TextEncoder().encode(data);
+  const binary = String.fromCharCode(...bytes);
+  return btoa(binary);
 }
 
 /**
@@ -230,7 +232,9 @@ export function encodeConfigurationToUrl(config: Configuration): string {
  */
 export function decodeConfigurationFromUrl(encoded: string): Partial<Configuration> | null {
   try {
-    const data = JSON.parse(atob(encoded));
+    const binary = atob(encoded);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const data = JSON.parse(new TextDecoder().decode(bytes));
     return {
       selections: data.s || {},
       addOns: data.a || [],
