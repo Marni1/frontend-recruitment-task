@@ -459,6 +459,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
           value={currentValue || ""}
           onChange={(e) => handleOptionChange(option.id, e.target.value)}
           disabled={readOnly}
+          data-testid={`option-${option.id}`}
         >
           {option.choices?.map((choice) => (
             <option
@@ -915,9 +916,10 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
 
           <div
             className={`price-display ${isPriceLoading ? "price-loading" : ""}`}
+            data-testid="price-display"
           >
             <div className="price-label">Total Price</div>
-            <div className="price-value">{formattedTotal}</div>
+            <div className="price-value" data-testid="total-price">{formattedTotal}</div>
 
             {renderPriceBreakdown()}
 
@@ -936,6 +938,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
             className="btn btn-success btn-block"
             onClick={handleAddToCart}
             disabled={readOnly || !validation?.valid || isPriceLoading}
+            data-testid="add-to-cart-button"
           >
             {isPriceLoading ? "Calculating..." : "Add to Cart"}
           </button>

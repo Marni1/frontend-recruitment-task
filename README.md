@@ -76,6 +76,32 @@ pnpm dev
 - `pnpm build` - Type-check and build for production
 - `pnpm lint` - Run ESLint
 - `pnpm preview` - Preview production build
+- `pnpm test:e2e` - Run E2E tests with Playwright
+- `pnpm test:e2e:ui` - Run E2E tests in interactive UI mode
+- `pnpm test:e2e:headed` - Run E2E tests in headed mode (visible browser)
+- `pnpm test:e2e:debug` - Run E2E tests in debug mode
+
+## Testing
+
+The project includes comprehensive E2E tests using Playwright to verify the price calculation race condition fix (CFG-142).
+
+### Running Tests
+
+```bash
+# First time only: Install Playwright browsers
+pnpm exec playwright install
+
+# Run all E2E tests
+pnpm run test:e2e
+
+# Run with interactive UI (recommended for development)
+pnpm run test:e2e:ui
+
+# Run in headed mode to watch tests execute
+pnpm run test:e2e:headed
+```
+
+See `e2e/README.md` for detailed test documentation.
 
 ## Important Context
 
