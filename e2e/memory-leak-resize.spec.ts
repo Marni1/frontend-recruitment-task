@@ -3,23 +3,6 @@ import { test, expect, Page, CDPSession } from "@playwright/test";
 /**
  * CFG-143: App becomes sluggish after extended use
  *
- * Root causes identified in ProductConfigurator.tsx:
- *
- * 1. RESIZE LISTENER LEAK (line ~197-211)
- *    useEffect adds `window.addEventListener("resize", handleResize)` but
- *    never returns a cleanup function. The listener is never removed.
- *    Comment from Marcus: "Resize handler might have a leak"
- *
- * 2. PREVIEW URL ACCUMULATION
- *    Every config change calls `generatePreview()` which creates a unique
- *    URL with a cache-busting `?t=${Date.now()}` param. Over many changes,
- *    old image references accumulate in browser memory.
- *
- * 3. UNSTABLE currentConfig REFERENCE
- *    The useMemo for `currentConfig` includes `new Date().toISOString()` in
- *    createdAt/updatedAt, so every re-render produces a new object identity.
- *    This triggers cascading effects: validateConfiguration + generatePreview
- *    fire on every re-render, not just on actual config changes.
  *
  * These tests detect the symptoms via CDP event listener inspection,
  * heap memory measurement, and UI response-time measurement.
@@ -102,7 +85,7 @@ async function performRandomConfigChange(page: Page): Promise<void> {
 }
 
 /**
- * Use CDP DOMDebugger.getEventListeners to count how many 'resize'
+
  * listeners are attached to `window`. This is the same API Chrome
  * DevTools uses when you call `getEventListeners(window)` in the console.
  */

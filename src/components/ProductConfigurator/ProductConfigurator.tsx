@@ -142,7 +142,8 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   const [configId] = useState<string>(
     () => initialConfiguration?.id || generateConfigId(),
   );
-
+  const [createdAt] = useState(() => new Date().toISOString());
+  const [updatedAt, setUpdatedAt] = useState(() => new Date().toISOString());
   const [isDirty, setIsDirty] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -174,8 +175,8 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
       selections,
       addOns: selectedAddOns,
       quantity,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
     }),
     [configId, product.id, selections, selectedAddOns, quantity],
   );
@@ -258,7 +259,10 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     if (onConfigurationChange) {
       onConfigurationChange(currentConfig);
     }
-    setIsDirty(true);
+    (() => {
+      setUpdatedAt(new Date().toISOString());
+      setIsDirty(true);
+    })();
   }, [selections, selectedAddOns, quantity]);
 
   useEffect(() => {
