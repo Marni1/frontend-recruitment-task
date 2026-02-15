@@ -178,7 +178,15 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
       createdAt: createdAt,
       updatedAt: updatedAt,
     }),
-    [configId, product.id, selections, selectedAddOns, quantity],
+    [
+      configId,
+      product.id,
+      selections,
+      selectedAddOns,
+      quantity,
+      createdAt,
+      updatedAt,
+    ],
   );
 
   const {
