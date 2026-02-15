@@ -297,23 +297,22 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
       }));
 
       const option = product.options.find((o) => o.id === optionId);
-      if (option) {
-        const dependentAddOns = product.addOns.filter(
-          (a) => a.dependsOn?.optionId === optionId,
+      if (!option) return;
+      const dependentAddOns = product.addOns.filter(
+        (a) => a.dependsOn?.optionId === optionId,
+      );
+      const idsToRemove = dependentAddOns
+        .filter(
+          (addOn) => addOn.dependsOn && value !== addOn.dependsOn.requiredValue,
+        )
+        .map((addOn) => addOn.id);
+      if (idsToRemove.length > 0) {
+        setSelectedAddOns((prev) =>
+          prev.filter((id) => !idsToRemove.includes(id)),
         );
-
-        for (const addOn of dependentAddOns) {
-          if (addOn.dependsOn && value !== addOn.dependsOn.requiredValue) {
-            const index = selectedAddOns.indexOf(addOn.id);
-            if (index > -1) {
-              selectedAddOns.splice(index, 1); //tutaj  blad mutacja
-              setSelectedAddOns(selectedAddOns);
-            }
-          }
-        }
       }
     },
-    [product.options, product.addOns, selectedAddOns],
+    [product.options, product.addOns],
   );
 
   const handleAddOnToggle = useCallback(
@@ -925,6 +924,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
               <button
                 className="quick-add-btn"
                 onClick={handleQuickAdd}
+                onKeyDown={handleQuickAdd}
                 disabled={readOnly || !validation?.valid}
               >
                 ⚡ Quick Add to Cart
