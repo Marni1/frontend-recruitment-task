@@ -111,6 +111,16 @@ const calculateColorColumns = (
   const columns = Math.floor((containerWidth + gap) / (swatchSize + gap));
   return Math.max(1, columns);
 };
+const focusFirstModalElement = (
+  ref: React.RefObject<HTMLDivElement | null>,
+) => {
+  setTimeout(() => {
+    const firstFocusable = ref.current?.querySelector<HTMLElement>(
+      'button, input, [tabindex="0"]',
+    );
+    firstFocusable?.focus();
+  }, 0);
+};
 
 // ============================================================================
 // Main Component
@@ -265,26 +275,18 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   useEffect(() => {
     if (showDraftModal) {
       getAllDrafts().then(setDrafts);
-      setTimeout(() => {
-        const firstFocusable = modalRef.current?.querySelector<HTMLElement>(
-          'button, input, [tabindex="0"]',
-        );
-        firstFocusable?.focus();
-      }, 0);
+      focusFirstModalElement(modalRef);
     }
   }, [showDraftModal]);
 
   useEffect(() => {
     if (showShareModal) {
       const encoded = encodeConfigurationToUrl(currentConfig);
-      const url = `${window.location.origin}${window.location.pathname}?config=${encoded}`;
+      const encodedUri = encodeURIComponent(encoded);
+      const url = `${window.location.origin}${window.location.pathname}?config=${encodedUri}`;
+
       setShareUrl(url);
-      setTimeout(() => {
-        const firstFocusable = modalRef.current?.querySelector<HTMLElement>(
-          'button, input, [tabindex="0"]',
-        );
-        firstFocusable?.focus();
-      }, 0);
+      focusFirstModalElement(modalRef);
     }
   }, [showShareModal, currentConfig]);
 
