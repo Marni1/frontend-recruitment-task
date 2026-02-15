@@ -162,6 +162,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const lastFocusedElement = useRef<HTMLElement | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // -------------------------------------------------------------------------
   // Derived State
@@ -264,6 +265,12 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   useEffect(() => {
     if (showDraftModal) {
       getAllDrafts().then(setDrafts);
+      setTimeout(() => {
+        const firstFocusable = modalRef.current?.querySelector<HTMLElement>(
+          'button, input, [tabindex="0"]',
+        );
+        firstFocusable?.focus();
+      }, 0);
     }
   }, [showDraftModal]);
 
@@ -272,6 +279,12 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
       const encoded = encodeConfigurationToUrl(currentConfig);
       const url = `${window.location.origin}${window.location.pathname}?config=${encoded}`;
       setShareUrl(url);
+      setTimeout(() => {
+        const firstFocusable = modalRef.current?.querySelector<HTMLElement>(
+          'button, input, [tabindex="0"]',
+        );
+        firstFocusable?.focus();
+      }, 0);
     }
   }, [showShareModal, currentConfig]);
 
@@ -436,6 +449,26 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     [handleModalClose],
   );
 
+  const handleModalTabTrap = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== "Tab") return;
+
+    const focusableElements = modalRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex="0"]',
+    );
+    if (!focusableElements || focusableElements.length === 0) return;
+
+    const first = focusableElements[0];
+    const last = focusableElements[focusableElements.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
   const handleDiscardChanges = useCallback(() => {
     setSelections(getDefaultSelections(product));
     setSelectedAddOns([]);
@@ -498,11 +531,20 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
           {option.choices?.map((choice, index) => (
             <div
               key={index}
+              tabIndex={0}
               className={`color-swatch ${currentValue === choice.value ? "selected" : ""}`}
               style={{ backgroundColor: choice.colorHex }}
               onClick={() =>
                 !readOnly && handleOptionChange(option.id, choice.value)
               }
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  if (!readOnly) {
+                    handleOptionChange(option.id, choice.value);
+                  }
+                }
+              }}
               title={choice.label}
               role="radio"
               aria-checked={currentValue === choice.value}
@@ -625,7 +667,6 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
           type="checkbox"
           className="addon-checkbox"
           checked={isSelected}
-          onChange={() => {}}
           disabled={readOnly || !isAvailable}
         />
         <div className="addon-info">
@@ -713,7 +754,14 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
         onClick={() => handleModalClose("draft")}
         onKeyDown={(e) => handleModalKeyDown(e, "draft")}
       >
-        <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal"
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          onKeyDown={handleModalTabTrap}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="modal-header">
             <h3 className="modal-title">Saved Drafts</h3>
             <button
@@ -800,7 +848,14 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
         onClick={() => handleModalClose("share")}
         onKeyDown={(e) => handleModalKeyDown(e, "share")}
       >
-        <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal"
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          onKeyDown={handleModalTabTrap}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="modal-header">
             <h3 className="modal-title">Share Configuration</h3>
             <button
