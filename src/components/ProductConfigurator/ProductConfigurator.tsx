@@ -987,7 +987,6 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
               <button
                 className="quick-add-btn"
                 onClick={handleQuickAdd}
-                onKeyDown={handleQuickAdd}
                 disabled={readOnly || !validation?.valid}
               >
                 ⚡ Quick Add to Cart
