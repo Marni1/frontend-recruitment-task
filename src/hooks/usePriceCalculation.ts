@@ -86,60 +86,92 @@ export function useDebouncedPriceCalculation(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!config) {
-      setPrice(null);
-      setFormattedTotal("$0.00");
-      setIsLoading(false);
-      return;
-    }
 
-    let cancelled = false;
+  const configRef = useRef(config);
+  const productRef = useRef(product);
+  configRef.current = config;
+  productRef.current = product;
+
+
+  const latestRequestRef = useRef<number>(0);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+
+  const configKey = config
+    ? JSON.stringify({
+        selections: config.selections,
+        addOns: config.addOns,
+        quantity: config.quantity,
+      })
+    : null;
+
+
+  const cancelDebounce = useCallback(() => {
+    if (debounceTimerRef.current !== null) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+  }, []);
+
+
+  const executeRequest = useCallback(async () => {
+    const currentConfig = configRef.current;
+    const currentProduct = productRef.current;
+    if (!currentConfig) return;
+
+    const requestId = ++latestRequestRef.current;
+
     setIsLoading(true);
     setError(null);
 
-    const timeoutId = setTimeout(async () => {
-      try {
-        const response = await calculatePrice(config, product);
+    try {
+      const response = await calculatePrice(currentConfig, currentProduct);
 
-        if (!cancelled) {
-          setPrice(response.breakdown);
-          setFormattedTotal(response.formattedTotal);
-        }
-      } catch {
-        if (!cancelled) {
-          setError("ERR_PRICE_CALC_FAILED");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+      if (requestId === latestRequestRef.current) {
+        setPrice(response.breakdown);
+        setFormattedTotal(response.formattedTotal);
       }
+    } catch {
+      if (requestId === latestRequestRef.current) {
+        setError("ERR_PRICE_CALC_FAILED");
+      }
+    } finally {
+      if (requestId === latestRequestRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!config) {
+      cancelDebounce();
+      latestRequestRef.current++;
+      setPrice(null);
+      setFormattedTotal("$0.00");
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    cancelDebounce();
+
+    // isLoading is set inside executeRequest (when the request actually fires),
+    // NOT here during the debounce wait period.
+    debounceTimerRef.current = setTimeout(() => {
+      executeRequest();
     }, delay);
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-    };
-  }, [config, product, delay]);
+    return cancelDebounce;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configKey, product.id, delay, cancelDebounce, executeRequest]);
 
+  // Refetch: cancels pending debounce, fires immediately, shares the same
+  // request counter so it coordinates with the effect.
   const refetch = useCallback(() => {
-    if (config) {
-      setIsLoading(true);
-      calculatePrice(config, product)
-        .then((response) => {
-          setPrice(response.breakdown);
-          setFormattedTotal(response.formattedTotal);
-          setError(null);
-        })
-        .catch(() => {
-          setError("ERR_PRICE_CALC_FAILED");
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    }
-  }, [config, product]);
+    if (!configRef.current) return;
+    cancelDebounce();
+    executeRequest();
+  }, [cancelDebounce, executeRequest]);
 
   return {
     price,
