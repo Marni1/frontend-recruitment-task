@@ -208,6 +208,10 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
 
     window.addEventListener("resize", handleResize);
     handleResize();
+
+    () => {
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
 
   useEffect(() => {
@@ -918,7 +922,9 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
             data-testid="price-display"
           >
             <div className="price-label">Total Price</div>
-            <div className="price-value" data-testid="total-price">{formattedTotal}</div>
+            <div className="price-value" data-testid="total-price">
+              {formattedTotal}
+            </div>
 
             {renderPriceBreakdown()}
 
