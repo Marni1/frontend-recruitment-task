@@ -667,6 +667,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
           type="checkbox"
           className="addon-checkbox"
           checked={isSelected}
+          readOnly
           disabled={readOnly || !isAvailable}
         />
         <div className="addon-info">
