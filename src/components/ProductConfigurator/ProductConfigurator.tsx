@@ -398,10 +398,15 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   }, [validation, price, currentConfig, onAddToCart]);
 
   const handleQuickAdd = useCallback(() => {
+    if (!validation?.valid) {
+      setError(validation?.errors[0]?.code || ERROR_CODES.UNKNOWN);
+      return;
+    }
+
     if (price && onAddToCart) {
       onAddToCart(currentConfig, price);
     }
-  }, [price, currentConfig, onAddToCart]);
+  }, [validation, price, currentConfig, onAddToCart]);
 
   const handleCopyShareUrl = useCallback(() => {
     navigator.clipboard
