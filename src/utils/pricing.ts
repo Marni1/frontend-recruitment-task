@@ -1,11 +1,15 @@
 // Pricing Utilities
 // Marcus: "These calculations match our backend logic"
 
-import type { Configuration, PriceBreakdown, Product } from '../components/ProductConfigurator/types';
+import type {
+  Configuration,
+  PriceBreakdown,
+  Product,
+} from "../components/ProductConfigurator/types";
 
 // Discount tiers
 const QUANTITY_DISCOUNT_TIERS = [
-  { minQuantity: 50, discount: 0.10 }, // 10% off for 50+
+  { minQuantity: 50, discount: 0.1 }, // 10% off for 50+
   { minQuantity: 10, discount: 0.05 }, // 5% off for 10-49
 ];
 
@@ -14,10 +18,10 @@ const QUANTITY_DISCOUNT_TIERS = [
  */
 export function calculatePriceBreakdown(
   config: Configuration,
-  product: Product
+  product: Product,
 ): PriceBreakdown {
-  const optionModifiers: PriceBreakdown['optionModifiers'] = [];
-  const addOnCosts: PriceBreakdown['addOnCosts'] = [];
+  const optionModifiers: PriceBreakdown["optionModifiers"] = [];
+  const addOnCosts: PriceBreakdown["addOnCosts"] = [];
 
   const basePrice = product.basePrice;
 
@@ -26,7 +30,7 @@ export function calculatePriceBreakdown(
     const selectedValue = config.selections[option.id];
 
     if (option.choices && selectedValue) {
-      const choice = option.choices.find(c => c.value === selectedValue);
+      const choice = option.choices.find((c) => c.value === selectedValue);
       if (choice && choice.priceModifier !== 0) {
         optionModifiers.push({
           optionId: option.id,
@@ -38,7 +42,7 @@ export function calculatePriceBreakdown(
 
   // Calculate add-on costs
   for (const addOnId of config.addOns) {
-    const addOn = product.addOns.find(a => a.id === addOnId);
+    const addOn = product.addOns.find((a) => a.id === addOnId);
     if (addOn) {
       addOnCosts.push({
         addOnId: addOn.id,
@@ -50,8 +54,8 @@ export function calculatePriceBreakdown(
   // Calculate subtotal
   const optionTotal = optionModifiers.reduce((sum, mod) => sum + mod.amount, 0);
   const addOnTotal = addOnCosts.reduce((sum, cost) => sum + cost.amount, 0);
-  const unitPrice = basePrice + optionTotal + addOnTotal;
-  const subtotal = unitPrice * config.quantity;
+  const unitPrice = roundToCents(basePrice + optionTotal + addOnTotal);
+  const subtotal = roundToCents(unitPrice * config.quantity);
 
   // Calculate quantity discount
   let discountRate = 0;
@@ -62,8 +66,8 @@ export function calculatePriceBreakdown(
     }
   }
 
-  const quantityDiscount = subtotal * discountRate;
-  const total = subtotal - quantityDiscount;
+  const quantityDiscount = roundToCents(subtotal * discountRate);
+  const total = roundToCents(subtotal - quantityDiscount);
 
   return {
     basePrice,
@@ -78,9 +82,9 @@ export function calculatePriceBreakdown(
 /**
  * Format a price for display
  */
-export function formatPrice(amount: number, currency: string = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
+export function formatPrice(amount: number, currency: string = "USD"): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
     currency,
   }).format(amount);
 }
@@ -100,9 +104,13 @@ export function getAppliedDiscountPercentage(quantity: number): number {
 /**
  * Get the next discount tier info for display
  */
-export function getNextDiscountTier(quantity: number): { needed: number; discount: number } | null {
+export function getNextDiscountTier(
+  quantity: number,
+): { needed: number; discount: number } | null {
   // Find the next tier they haven't reached
-  const sortedTiers = [...QUANTITY_DISCOUNT_TIERS].sort((a, b) => a.minQuantity - b.minQuantity);
+  const sortedTiers = [...QUANTITY_DISCOUNT_TIERS].sort(
+    (a, b) => a.minQuantity - b.minQuantity,
+  );
 
   for (const tier of sortedTiers) {
     if (quantity < tier.minQuantity) {
