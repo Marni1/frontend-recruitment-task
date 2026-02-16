@@ -17,11 +17,11 @@ List the ticket numbers you worked on, in the order you addressed them:
    I had to make an assumption because I couldn’t reproduce the bug.
    Fixed the function’s behavior and improved its readability.
 
-3. **CFG-152: Accessibility - Can't navigate with keyboard only**:
-   I added keyboard navigation support in the missing areas and implemented proper focus handling for modals.
-
-4. **CFG-147: Share link broken for some configurations**:
+3. **CFG-147: Share link broken for some configurations**:
    Fixed crashing when encoding and decoding functions were provided with Polish letters.
+
+4. **CFG-152: Accessibility - Can't navigate with keyboard only**:
+   I added keyboard navigation support in the missing areas and implemented proper focus handling for modals.
 
 5. **CFG-143: App becomes sluggish after extended use**
    Wrote an E2E test to catch a memory leak and fixed the resize useEffect by clearing unused event listeners on unmount
