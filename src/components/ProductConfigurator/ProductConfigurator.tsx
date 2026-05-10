@@ -27,7 +27,6 @@ import React, {
 } from "react";
 import type {
   Product,
-  ProductOption,
   AddOn,
   Configuration,
   PriceBreakdown,
@@ -51,6 +50,7 @@ import {
   getAppliedDiscountPercentage,
   getNextDiscountTier,
 } from "../../utils/pricing";
+import { OptionRenderer } from "./components/OptionRenderer";
 import "./styles.css";
 
 interface ProductConfiguratorProps {
@@ -495,183 +495,6 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     setIsDirty(false);
   }, [product]);
 
-  // -------------------------------------------------------------------------
-  // Render Helpers
-  // -------------------------------------------------------------------------
-
-  const renderSelectOption = (option: ProductOption) => {
-    const currentValue = selections[option.id] as string;
-
-    return (
-      <div className="option-group" key={option.id}>
-        <label className="option-label" htmlFor={`option-${option.id}`}>
-          {option.name}
-          {option.required && <span className="required">*</span>}
-        </label>
-        <select
-          id={`option-${option.id}`}
-          className="option-select"
-          value={currentValue || ""}
-          onChange={(e) => handleOptionChange(option.id, e.target.value)}
-          disabled={readOnly}
-          data-testid={`option-${option.id}`}
-        >
-          {option.choices?.map((choice) => (
-            <option
-              key={choice.id}
-              value={choice.value}
-              disabled={!choice.available}
-            >
-              {choice.label}
-              {choice.priceModifier !== 0 &&
-                ` (${choice.priceModifier > 0 ? "+" : ""}${formatPrice(choice.priceModifier, product.currency)})`}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  };
-
-  const renderColorOption = (option: ProductOption) => {
-    const currentValue = selections[option.id] as string;
-
-    return (
-      <div className="option-group" key={option.id}>
-        <label className="option-label">
-          {option.name}
-          {option.required && <span className="required">*</span>}
-        </label>
-        <div
-          className="color-picker"
-          ref={colorPickerRef}
-          role="radiogroup"
-          aria-label={option.name}
-        >
-          {option.choices?.map((choice, index) => (
-            <div
-              key={index}
-              tabIndex={0}
-              className={`color-swatch ${currentValue === choice.value ? "selected" : ""}`}
-              style={{ backgroundColor: choice.colorHex }}
-              onClick={() =>
-                !readOnly && handleOptionChange(option.id, choice.value)
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  if (!readOnly) {
-                    handleOptionChange(option.id, choice.value);
-                  }
-                }
-              }}
-              title={choice.label}
-              role="radio"
-              aria-checked={currentValue === choice.value}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderQuantityOption = (option: ProductOption) => {
-    return (
-      <div className="option-group" key={option.id}>
-        <label className="option-label" htmlFor={`quantity-input`}>
-          {option.name}
-          {option.required && <span className="required">*</span>}
-          {appliedDiscount > 0 && (
-            <span className="discount-badge">{appliedDiscount}% OFF</span>
-          )}
-        </label>
-        <div className="quantity-control">
-          <button
-            className="quantity-btn"
-            onClick={() => handleQuantityChange(quantity - 1)}
-            disabled={readOnly || quantity <= (option.min ?? 1)}
-            aria-label="Decrease quantity"
-          >
-            −
-          </button>
-          <input
-            id="quantity-input"
-            type="number"
-            className="quantity-input"
-            value={quantity}
-            onChange={(e) =>
-              handleQuantityChange(parseInt(e.target.value) || 1)
-            }
-            min={option.min}
-            max={option.max}
-            disabled={readOnly}
-          />
-          <button
-            className="quantity-btn"
-            onClick={() => handleQuantityChange(quantity + 1)}
-            disabled={readOnly || quantity >= (option.max ?? 999)}
-            aria-label="Increase quantity"
-          >
-            +
-          </button>
-        </div>
-        {nextTier && (
-          <p className="next-discount-hint">
-            Add {nextTier.needed} more for {nextTier.discount}% discount!
-          </p>
-        )}
-      </div>
-    );
-  };
-
-  const renderToggleOption = (option: ProductOption) => {
-    const currentValue = selections[option.id] as boolean;
-
-    return (
-      <div className="option-group" key={option.id}>
-        <div className="toggle-control">
-          <div
-            className={`toggle-switch ${currentValue ? "active" : ""}`}
-            onClick={() =>
-              !readOnly && handleOptionChange(option.id, !currentValue)
-            }
-            role="switch"
-            aria-checked={currentValue}
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handleOptionChange(option.id, !currentValue);
-              }
-            }}
-          />
-          <span className="toggle-label">{option.name}</span>
-        </div>
-      </div>
-    );
-  };
-
-  const renderOption = (option: ProductOption) => {
-    if (option.dependsOn) {
-      const depValue = selections[option.dependsOn.optionId];
-      if (depValue !== option.dependsOn.requiredValue) {
-        return null;
-      }
-    }
-
-    switch (option.type) {
-      case "select":
-        return renderSelectOption(option);
-      case "color":
-        return renderColorOption(option);
-      case "quantity":
-        return renderQuantityOption(option);
-      case "toggle":
-        return renderToggleOption(option);
-      default:
-        return null;
-    }
-  };
-
   const renderAddOn = (addOn: AddOn) => {
     const isSelected = selectedAddOns.includes(addOn.id);
     const isAvailable = isAddOnAvailable(addOn, selections);
@@ -969,11 +792,39 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
         <div className="options-section">
           {product.options
             .filter((opt) => opt.type !== "quantity")
-            .map(renderOption)}
+            .map((option) => (
+              <OptionRenderer
+                key={option.id}
+                option={option}
+                selections={selections}
+                currency={product.currency}
+                readOnly={readOnly}
+                colorPickerRef={colorPickerRef}
+                quantity={quantity}
+                appliedDiscount={appliedDiscount}
+                nextTier={nextTier}
+                onOptionChange={handleOptionChange}
+                onQuantityChange={handleQuantityChange}
+              />
+            ))}
 
           {product.options
             .filter((opt) => opt.type === "quantity")
-            .map(renderOption)}
+            .map((option) => (
+              <OptionRenderer
+                key={option.id}
+                option={option}
+                selections={selections}
+                currency={product.currency}
+                readOnly={readOnly}
+                colorPickerRef={colorPickerRef}
+                quantity={quantity}
+                appliedDiscount={appliedDiscount}
+                nextTier={nextTier}
+                onOptionChange={handleOptionChange}
+                onQuantityChange={handleQuantityChange}
+              />
+            ))}
 
           {product.addOns.length > 0 && (
             <div className="addons-section">
