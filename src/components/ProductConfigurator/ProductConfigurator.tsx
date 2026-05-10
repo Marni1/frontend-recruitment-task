@@ -36,6 +36,10 @@ import type {
 import { ERROR_CODES } from "./types";
 import { useDebouncedPriceCalculation } from "../../hooks/usePriceCalculation";
 import {
+  isAddOnAvailable,
+  useProductConfiguration,
+} from "../../hooks/useProductConfiguration";
+import {
   validateConfiguration,
   saveDraft,
   loadDraft,
@@ -67,35 +71,6 @@ interface ProductConfiguratorProps {
 
 const generateConfigId = (): string => {
   return `config_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-};
-
-const getDefaultSelections = (
-  product: Product,
-): Record<string, string | number | boolean> => {
-  const selections: Record<string, string | number | boolean> = {};
-
-  for (const option of product.options) {
-    if (option.defaultValue !== undefined) {
-      selections[option.id] = option.defaultValue;
-    } else if (option.choices && option.choices.length > 0) {
-      const firstAvailable = option.choices.find((c) => c.available);
-      if (firstAvailable) {
-        selections[option.id] = firstAvailable.value;
-      }
-    }
-  }
-
-  return selections;
-};
-
-const isAddOnAvailable = (
-  addOn: AddOn,
-  selections: Record<string, string | number | boolean>,
-): boolean => {
-  if (!addOn.dependsOn) return true;
-
-  const dependencyValue = selections[addOn.dependsOn.optionId];
-  return dependencyValue === addOn.dependsOn.requiredValue;
 };
 
 const formatTimestamp = (isoString: string): string => {
@@ -137,24 +112,32 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   // State
   // -------------------------------------------------------------------------
 
-  const [selections, setSelections] = useState<
-    Record<string, string | number | boolean>
-  >(() => initialConfiguration?.selections || getDefaultSelections(product));
+  const [error, setError] = useState<string | null>(null);
+  const handleDependencyMissing = useCallback(() => {
+    setError(ERROR_CODES.DEPENDENCY_MISSING);
+  }, []);
 
-  const [selectedAddOns, setSelectedAddOns] = useState<string[]>(
-    () => initialConfiguration?.addOns || [],
-  );
-
-  const [quantity, setQuantity] = useState<number>(
-    () => initialConfiguration?.quantity || 1,
-  );
+  const {
+    selections,
+    selectedAddOns,
+    quantity,
+    isDirty,
+    setIsDirty,
+    handleOptionChange,
+    handleAddOnToggle,
+    handleQuantityChange,
+    applyConfiguration,
+    applyPartialConfiguration,
+    resetConfiguration,
+  } = useProductConfiguration(product, initialConfiguration, {
+    onDependencyMissing: handleDependencyMissing,
+  });
 
   const [configId] = useState<string>(
     () => initialConfiguration?.id || generateConfigId(),
   );
   const [createdAt] = useState(() => new Date().toISOString());
   const [updatedAt, setUpdatedAt] = useState(() => new Date().toISOString());
-  const [isDirty, setIsDirty] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [draftName, setDraftName] = useState("");
 
@@ -165,8 +148,6 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   const [validation, setValidation] = useState<ValidationResult | null>(null);
 
   const [previewUrl, setPreviewUrl] = useState<string>(product.imageUrl);
-
-  const [error, setError] = useState<string | null>(null);
 
   const [shareUrl, setShareUrl] = useState<string>("");
 
@@ -309,75 +290,14 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     if (encodedConfig) {
       const decoded = decodeConfigurationFromUrl(encodedConfig);
       if (decoded) {
-        if (decoded.selections) setSelections(decoded.selections);
-        if (decoded.addOns) setSelectedAddOns(decoded.addOns);
-        if (decoded.quantity) setQuantity(decoded.quantity);
+        applyPartialConfiguration(decoded);
       }
     }
-  }, []);
+  }, [applyPartialConfiguration]);
 
   // -------------------------------------------------------------------------
   // Event Handlers
   // -------------------------------------------------------------------------
-
-  const handleOptionChange = useCallback(
-    (optionId: string, value: string | number | boolean) => {
-      setSelections((prev) => ({
-        ...prev,
-        [optionId]: value,
-      }));
-
-      const option = product.options.find((o) => o.id === optionId);
-      if (!option) return;
-      const dependentAddOns = product.addOns.filter(
-        (a) => a.dependsOn?.optionId === optionId,
-      );
-      const idsToRemove = dependentAddOns
-        .filter(
-          (addOn) => addOn.dependsOn && value !== addOn.dependsOn.requiredValue,
-        )
-        .map((addOn) => addOn.id);
-      if (idsToRemove.length > 0) {
-        setSelectedAddOns((prev) =>
-          prev.filter((id) => !idsToRemove.includes(id)),
-        );
-      }
-    },
-    [product.options, product.addOns],
-  );
-
-  const handleAddOnToggle = useCallback(
-    (addOnId: string) => {
-      const addOn = product.addOns.find((a) => a.id === addOnId);
-      if (!addOn) return;
-
-      if (!isAddOnAvailable(addOn, selections)) {
-        setError(ERROR_CODES.DEPENDENCY_MISSING);
-        return;
-      }
-
-      setSelectedAddOns((prev) => {
-        if (prev.includes(addOnId)) {
-          return prev.filter((id) => id !== addOnId);
-        } else {
-          return [...prev, addOnId];
-        }
-      });
-    },
-    [product.addOns, selections],
-  );
-
-  const handleQuantityChange = useCallback(
-    (newQuantity: number) => {
-      const quantityOption = product.options.find((o) => o.type === "quantity");
-      const min = quantityOption?.min ?? 1;
-      const max = quantityOption?.max ?? 999;
-
-      const clampedQuantity = Math.max(min, Math.min(max, newQuantity));
-      setQuantity(clampedQuantity);
-    },
-    [product.options],
-  );
 
   const handleSaveDraft = useCallback(async () => {
     try {
@@ -396,16 +316,14 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     try {
       const draft = await loadDraft(draftId);
       if (draft) {
-        setSelections(draft.configuration.selections);
-        setSelectedAddOns(draft.configuration.addOns);
-        setQuantity(draft.configuration.quantity);
+        applyConfiguration(draft.configuration);
         setShowDraftModal(false);
         setIsDirty(false);
       }
     } catch {
       setError(ERROR_CODES.UNKNOWN);
     }
-  }, []);
+  }, [applyConfiguration, setIsDirty]);
 
   const handleDeleteDraft = useCallback(async (draftId: string) => {
     try {
@@ -489,11 +407,8 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   }, []);
 
   const handleDiscardChanges = useCallback(() => {
-    setSelections(getDefaultSelections(product));
-    setSelectedAddOns([]);
-    setQuantity(1);
-    setIsDirty(false);
-  }, [product]);
+    resetConfiguration();
+  }, [resetConfiguration]);
 
   const renderAddOn = (addOn: AddOn) => {
     const isSelected = selectedAddOns.includes(addOn.id);
