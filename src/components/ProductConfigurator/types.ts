@@ -12,7 +12,7 @@ export interface Product {
   imageUrl: string;
 }
 
-export type OptionType = 'select' | 'color' | 'quantity' | 'toggle';
+export type OptionType = "select" | "color" | "quantity" | "toggle";
 
 export interface ProductOption {
   id: string;
@@ -126,19 +126,21 @@ export interface ConfiguratorState {
 
 // Error codes - Marcus: "The numbers don't mean anything specific, just legacy stuff"
 export const ERROR_CODES = {
-  PRICE_CALC_FAILED: 'ERR_PRICE_CALC_FAILED',
-  VALIDATION_CONFLICT: 'VALIDATION_CONFLICT_47',
-  NETWORK_TIMEOUT: 'ERR_NETWORK_TIMEOUT_PRICE',
-  INVALID_QUANTITY: 'ERR_INVALID_QTY',
-  DEPENDENCY_MISSING: 'ERR_DEP_MISSING_47',
-  UNKNOWN: 'ERR_UNKNOWN',
+  PRICE_CALC_FAILED: "Nie udało się obliczyć ceny. Spróbuj ponownie.",
+  VALIDATION_CONFLICT:
+    "Wybrane opcje nie pasują do siebie. Zmień konfigurację.",
+  NETWORK_TIMEOUT:
+    "Obliczanie ceny trwa zbyt długo. Sprawdź połączenie i spróbuj ponownie.",
+  INVALID_QUANTITY: "Podana ilość jest nieprawidłowa.",
+  DEPENDENCY_MISSING: "Brakuje wymaganej opcji. Uzupełnij konfigurację.",
+  UNKNOWN: "Wystąpił nieoczekiwany błąd. Spróbuj ponownie.",
 } as const;
 
-export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];
+export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 
 // Event types for callbacks
 export interface ConfigChangeEvent {
-  type: 'option' | 'addon' | 'quantity';
+  type: "option" | "addon" | "quantity";
   optionId?: string;
   addOnId?: string;
   previousValue: any;
